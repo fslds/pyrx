@@ -30,6 +30,16 @@ else:
     num_types = (float, int)
 
 
+class Result():
+    def __init__(self, valid, message):
+        self.valid = valid
+        self.message = message
+
+    def __bool__(self):
+        return self.valid
+    __nonzero__ = __bool__
+
+
 class RxError(Exception):
     pass
 
@@ -46,14 +56,14 @@ class Util(object):
 
         def check_range(value, explain=False):
             if range.get('min') is not None and value < range['min']:
-                return False
+                return Result(False, str(value) + ": too low")
             if range.get('min-ex') is not None and value <= range['min-ex']:
-                return False
+                return Result(False, str(value) + ": less than or equal min-ex")
             if range.get('max-ex') is not None and value >= range['max-ex']:
-                return False
+                return Result(False, str(value) + ": greater than or equal max-ex")
             if range.get('max') is not None and value > range['max']:
-                return False
-            return True
+                return Result(False, str(value) + ": greater than man")
+            return Result(True, "All Good")
 
         return check_range
 
@@ -185,7 +195,7 @@ class _CoreType(object):
             raise RxError('unknown parameter for //%s' % self.subname())
 
     def check(self, value):
-        return False
+        return Result(False, "Core type error")
 
 
 class AllType(_CoreType):
@@ -205,8 +215,8 @@ class AllType(_CoreType):
     def check(self, value):
         for schema in self.alts:
             if (not schema.check(value)):
-                return False
-        return True
+                return Result(False, str(value) + ": All type error")
+        return Result(True, "All Good")
 
 
 class AnyType(_CoreType):
@@ -227,13 +237,13 @@ class AnyType(_CoreType):
 
     def check(self, value):
         if self.alts is None:
-            return True
+            return Result(True, "All Good")
 
         for alt in self.alts:
             if alt.check(value):
-                return True
+                return Result(True, "All Good")
 
-        return False
+        return Result(False, str(value) + ": AnyType error")
 
 
 class ArrType(_CoreType):
@@ -257,15 +267,16 @@ class ArrType(_CoreType):
 
     def check(self, value):
         if not isinstance(value, (list, tuple)):
-            return False
+            return Result(False, str(value) + ": Not a list or tuple")
         if self.length and not self.length(len(value)):
-            return False
+            return Result(False, str(value) + ": incorrect length")
 
         for item in value:
-            if not self.content_schema.check(item):
-                return False
+            content_schema_result = self.content_schema.check(item)
+            if not content_schema_result:
+                return Result(False, content_schema_result.message + "\n ArrType error in: " + str(item))
 
-        return True
+        return Result(True, "All Good")
 
 
 class BoolType(_CoreType):
@@ -275,8 +286,8 @@ class BoolType(_CoreType):
 
     def check(self, value):
         if value is True or value is False:
-            return True
-        return False
+            return Result(True, "All Good")
+        return Result(False, str(value) + ": not a bool")
 
 
 class DefType(_CoreType):
@@ -285,7 +296,7 @@ class DefType(_CoreType):
         return 'def'
 
     def check(self, value):
-        return not(value is None)
+        return Result(not(value is None), str(value) + ": DefType???")
 
 
 class FailType(_CoreType):
@@ -294,7 +305,7 @@ class FailType(_CoreType):
         return 'fail'
 
     def check(self, value):
-        return False
+        return Result(False, "Fail type is fail")
 
 
 class IntType(_CoreType):
@@ -321,14 +332,14 @@ class IntType(_CoreType):
 
     def check(self, value):
         if not isinstance(value, num_types) or isinstance(value, bool):
-            return False
+            return Result(False, str(value) + ": Int type error")
         if value % 1 != 0:
-            return False
+            return Result(False, str(value) + ": not an int")
         if self.range and not self.range(value):
-            return False
+            return Result(False, str(value) + ": int range problem")
         if (not self.value is None) and value != self.value:
-            return False
-        return True
+            return Result(False, str(value) + ": int value problem")
+        return Result(True, "All Good")
 
 
 class MapType(_CoreType):
@@ -349,13 +360,14 @@ class MapType(_CoreType):
 
     def check(self, value):
         if not isinstance(value, dict):
-            return False
+            return Result(False, str(value) + ": not a dict")
 
         for v in value.values():
-            if not self.value_schema.check(v):
-                return False
+            value_schema_result = self.value_schema.check(v)
+            if not value_schema_result:
+                return Result(False, value_schema_result.message + "\n Map type error with " + str(v))
 
-        return True
+        return Result(True, "All Good")
 
 
 class NilType(_CoreType):
@@ -364,7 +376,7 @@ class NilType(_CoreType):
         return 'nil'
 
     def check(self, value):
-        return value is None
+        return Result(value is None, str(value) + ": NilType???")
 
 
 class NumType(_CoreType):
@@ -390,12 +402,12 @@ class NumType(_CoreType):
 
     def check(self, value):
         if not isinstance(value, num_types) or isinstance(value, bool):
-            return False
+            return Result(False, str(value) + ": not a Numtype")
         if self.range and not self.range(value):
-            return False
+            return Result(False, str(value) + ": Num not in range")
         if (not self.value is None) and value != self.value:
-            return False
-        return True
+            return Result(False, str(value) + ": wrong Num value")
+        return Result(True, "All Good")
 
 
 class OneType(_CoreType):
@@ -405,9 +417,9 @@ class OneType(_CoreType):
 
     def check(self, value):
         if isinstance(value, num_types + string_types + (bool,)):
-            return True
+            return Result(True, "All Good")
 
-        return False
+        return Result(False, str(value) + ": wrong OneType")
 
 
 class RecType(_CoreType):
@@ -438,38 +450,59 @@ class RecType(_CoreType):
                     schema[which][field]
                 )
 
-    def check(self, value):
-        if not isinstance(value, dict):
-            return False
+    def check_required_keys(self, value, keys):
+        for field in keys:
+            if field not in value:
+                return Result(False, str(value) + ": required key error")
+            required_keys_result = self.required[field].check(value[field])
+            if not required_keys_result:
+                return Result(False, required_keys_result.message + "\n required keys error. \nfield:" + str(field))
+        return True
 
+    def check_optional_keys(self, value, keys):
+        for field in keys:
+            if field not in value:
+                continue
+            optional_field_result = self.optional[field].check(value[field])
+            if not optional_field_result:
+                return Result(False, optional_field_result.message + "\n optional field error: " + str(field))
+        return True
+
+    def check_unknown_keys(self, value, keys):
         unknown = []
-        for field in value.keys():
+        for field in keys:
             if not field in self.known:
                 unknown.append(field)
 
         if len(unknown) and not self.rest_schema:
-            return False
-
-        for field in self.required.keys():
-            if field not in value:
-                return False
-            if not self.required[field].check(value[field]):
-                return False
-
-        for field in self.optional.keys():
-            if field not in value:
-                continue
-            if not self.optional[field].check(value[field]):
-                return False
+            return Result(False, str(value) + "unknown key error")
 
         if len(unknown):
             rest = {}
             for field in unknown:
                 rest[field] = value[field]
-            if not self.rest_schema.check(rest):
-                return False
-
+            rest_schema_result = self.rest_schema.check(rest)
+            if not rest_schema_result:
+                return Result(False, rest_schema_result.message + "\n unknown key error with: " + str(rest))
         return True
+
+    def check(self, value):
+        if not isinstance(value, dict):
+            return Result(False, str(value) + ": not a Dict")
+
+        unknown_keys = self.check_unknown_keys(value, value.keys())
+        if not unknown_keys:
+            return unknown_keys
+
+        req_keys = self.check_required_keys(value, self.required.keys())
+        if not req_keys:
+            return req_keys
+
+        optional_keys = self.check_optional_keys(value, self.optional.keys())
+        if not optional_keys:
+            return optional_keys
+
+        return Result(True, "All good")
 
 
 class SeqType(_CoreType):
@@ -492,23 +525,25 @@ class SeqType(_CoreType):
 
     def check(self, value):
         if not isinstance(value, (list, tuple)):
-            return False
+            return Result(False, str(value) + ": not a list of tuple")
 
         if len(value) < len(self.content_schema):
-            return False
+            return Result(False, str(value) + ": wrong length")
 
         for i in range(0, len(self.content_schema)):
-            if not self.content_schema[i].check(value[i]):
-                return False
+            content_schema_check = self.content_schema[i].check(value[i])
+            if not content_schema_check:
+                return Result(False, content_schema_check.message + "\nvalue: " + value[i])
 
         if len(value) > len(self.content_schema):
             if not self.tail_schema:
-                return False
+                return Result(False, str(value) + ": TailSchema???")
 
-            if not self.tail_schema.check(value[len(self.content_schema):]):
-                return False
+            tail_schema_result = self.tail_schema.check(value[len(self.content_schema):])
+            if not tail_schema_result:
+                return Result(False, tail_schema_result.message + "\nTailSchema issue in: " + str(value[len(self.content_schema)]))
 
-        return True
+        return Result(True, "All Good")
 
 
 class StrType(_CoreType):
@@ -532,12 +567,12 @@ class StrType(_CoreType):
 
     def check(self, value):
         if not isinstance(value, string_types):
-            return False
+            return Result(False, str(value) + ": not a str type")
         if (not self.value is None) and value != self.value:
-            return False
+            return Result(False, str(value) + ": wrong str value")
         if self.length and not self.length(len(value)):
-            return False
-        return True
+            return Result(False, str(value) + ": wrong str length")
+        return Result(True, "All Good")
 
 
 core_types = [
