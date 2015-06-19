@@ -25,30 +25,30 @@ class TestSchemas(unittest.TestCase):
         self.assertTrue(self.schema.check({
           "a": "a string",
           "b": 1,
-        }))
+        }).valid)
         self.assertTrue(self.schema.check({
           "a": "a string",
           "b": 1,
           "c": False,
-        }))
+        }).valid)
 
     def test_bad(self):
         self.assertFalse(self.schema.check({
           "a": ["not just a string"],
           "b": 1,
-        }))
+        }).valid)
         self.assertFalse(self.schema.check({
           "a": "a string",
           "b": "not an int",
-        }))
+        }).valid)
         self.assertFalse(self.schema.check({
           "a": "b is missing",
-        }))
+        }).valid)
         self.assertFalse(self.schema.check({
           "a": "c is not a bool",
           "b": 1,
           "c": None,
-        }))
+        }).valid)
 
 
 
@@ -159,7 +159,7 @@ def check_schema(schema, spec, data, name):
         for sourcename, to_test in checks.items():
             normalized = normalize(to_test, data[sourcename])
             for entry in normalized:
-                result = schema.check(data[sourcename][entry])
+                result = schema.check(data[sourcename][entry]).valid
                 test_name = 'test_check_schema_{}_{}_{}_{}'.format(name, sourcename, fail, entry)
                 check(test_name, 'assertEqual', result, not fail)
 

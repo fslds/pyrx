@@ -1,9 +1,9 @@
-pyrx
+pyrx with error messages
 ====
 
-[![Build Status](https://travis-ci.org/uniphil/pyrx.png)](https://travis-ci.org/uniphil/pyrx)
-
 Python implementation of the [Rx schema and validation system](http://rx.codesimply.com/)
+
+Fork of [pyrx](https://github.com/uniphil/pyrx) with added error messages. Most of the readme is also taken from there, just with updated usage instuctions.
 
 
 Forked
@@ -23,15 +23,7 @@ Requirements
 ------------
 
 * No external dependencies
-* Python2.7 (python3 support coming soon)
-
-
-Installation
-------------
-
-```bash
-$ pip install pyrx
-```
+* Python2.7
 
 
 Usage
@@ -55,8 +47,9 @@ schema_src = {
 
 schema = rx.make_schema(schema_src)
 
-schema.check({"a": "a string", "b": 2})  # returns True
-schema.check({"a": "a string", "b": "another string"})  # returns False
+schema.check({"a": "a string", "b": 2}).valid  # returns True
+schema.check({"a": "a string", "b": "another string"}).valid  # returns False
+schema.check({"a": "a string", "b": "another string"}).message  # returns an error message
 
 ```
 
@@ -64,15 +57,5 @@ schema.check({"a": "a string", "b": "another string"})  # returns False
 Testing
 -------
 
-I didn't bring the tests over from the rx repo. They used `TAP` or something
-I'm not familiar with. The tests included here just run through a couple
-trivial cases to make sure it doesn't straight-up crash.
+py.test test/
 
-
-Road Map
---------
-
-* [x] Porting tests from the original RX repo (but using unittest)
-* [x] Port to python3
-* [x] Improve error messages on invalid schema tests
-* [ ] Improve documentation
