@@ -475,7 +475,7 @@ class RecType(_CoreType):
                 unknown.append(field)
 
         if len(unknown) and not self.rest_schema:
-            return Result(False, str(value) + "unknown key error")
+            return Result(False, str(unknown) + ": unknown key error")
 
         if len(unknown):
             rest = {}
