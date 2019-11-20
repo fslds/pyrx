@@ -2,7 +2,7 @@ from setuptools import setup
 
 readme = open('readme.md').read()
 setup(name='pyrx-ats',
-      version='0.3.1',
+      version='0.3.2',
       #author='Philip Schleihauf, ATS Advanced Telematic Systems',
       license='GPLv2',
       description='Rx schema and validation system, with added error messages',
