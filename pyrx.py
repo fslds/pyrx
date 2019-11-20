@@ -453,7 +453,9 @@ class RecType(_CoreType):
     def check_required_keys(self, value, keys):
         for field in keys:
             if field not in value:
-                return Result(False, str(value) + ": required key error")
+                return Result(
+                    False,
+                    str(value) + ": required key error - '" + field + "' missing")
             required_keys_result = self.required[field].check(value[field])
             if not required_keys_result:
                 return Result(False, required_keys_result.message + "\n required keys error. \nfield:" + str(field))
